@@ -5,20 +5,37 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium import webdriver
 from bs4 import BeautifulSoup
+from fake_useragent import UserAgent
+
+
+def click_button(driver, text):
+    buttons = WebDriverWait(driver, 10).until(
+        EC.presence_of_all_elements_located((By.TAG_NAME, "button"))
+    )
+    for button in buttons:
+        if button.text.strip().lower().find(text) != -1:
+            button.click()
+            break
+
+
+def wait_until_present(driver, by, locator):
+    return WebDriverWait(driver, 10).until(EC.presence_of_all_elements_located((by, locator)))
 
 
 def get_date_with_selenium(url, language='English'):
+    ua = UserAgent()
     options = webdriver.ChromeOptions()
-    options.add_argument('headless')
     options.add_argument('--incognito')
+    options.add_argument("--start-maximized")
+    options.add_argument(
+        "--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/97.0.4692.71 Safari/537.36")
+    options.add_argument('--no-sandbox')
+    options.add_argument('headless')
     driver = webdriver.Chrome(options=options)
 
     try:
         driver.get(url)
-        buttons = WebDriverWait(driver, 10).until(
-            EC.presence_of_all_elements_located((By.TAG_NAME, "button"))
-        )
-
+        buttons = wait_until_present(driver, By.TAG_NAME, "button")
         language_found = False
         for button in buttons:
             if button.text.strip().lower() == language.lower():
@@ -30,83 +47,51 @@ def get_date_with_selenium(url, language='English'):
             print(f"Language '{language}' not found.")
             return
 
-        WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.XPATH, "//div[@data-v-32f18d34]")))
+        wait_until_present(driver, By.XPATH, "//div[@data-v-32f18d34]")
 
         required_inputs = driver.find_elements(By.XPATH, "//input[@required]")
         for input_element in required_inputs:
             label_element = input_element.find_element(By.XPATH, "..//label")
-            label_text = label_element.text.strip()
-            if "first name" in label_text.lower():
+            label_text = label_element.text.strip().lower()
+            if "first name" in label_text:
                 input_element.send_keys("John")
-            elif "last name" in label_text.lower():
+            elif "last name" in label_text:
                 input_element.send_keys("Doe")
-            elif "date of birth" in label_text.lower():
+            elif "date of birth" in label_text:
                 input_element.send_keys("01/01/2000")
-            elif "last four of ssn" in label_text.lower():
+            elif "last four of ssn" in label_text:
                 input_element.send_keys("1234")
 
         all_filled = all(input_element.get_attribute("value") for input_element in required_inputs)
 
         if all_filled:
-            button = WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.XPATH,
-                                                                                 "//button[@class='button white--text v-btn v-btn--contained theme--light v-size--default public-blue button-normal']")))
-            if button.is_enabled():
-                button.click()
-            else:
-                print("Button is not enabled")
+            click_button(driver, "log on")
+            time.sleep(2)
+            click_button(driver, "ok")
+            click_button(driver, "log on")
         else:
             print("Not all required input fields are filled")
 
         time.sleep(5)
-        buttons = WebDriverWait(driver, 10).until(
-            EC.presence_of_all_elements_located((By.TAG_NAME, "button"))
-        )
-        for button in buttons:
-            if button.text.strip().lower() == "new appointment":
-                button.click()
-                break
+        click_button(driver, "new appointment")
+        click_button(driver, "service not listed or my license is not eligible")
+        click_button(driver, "no")
 
-        WebDriverWait(driver, 10).until(EC.staleness_of(button))
-        buttons = WebDriverWait(driver, 10).until(
-            EC.presence_of_all_elements_located((By.TAG_NAME, "button"))
-        )
-        for button in buttons:
-            if button.text.strip().lower() == "service not listed or my license is not eligible":
-                button.click()
-                break
-
-        WebDriverWait(driver, 10).until(EC.staleness_of(button))
-        buttons = WebDriverWait(driver, 10).until(
-            EC.presence_of_all_elements_located((By.TAG_NAME, "button"))
-        )
-        for button in buttons:
-            if button.text.strip().lower() == "no":
-                button.click()
-                break
-
-        WebDriverWait(driver, 10).until(EC.staleness_of(button))
         interact_with_inputs(driver)
-        buttons = WebDriverWait(driver, 10).until(
-            EC.presence_of_all_elements_located((By.TAG_NAME, "button"))
-        )
-        for button in buttons:
-            if button.text.strip().lower().find("next") != -1:
-                button.click()
-                break
+
+        click_button(driver, "next")
         time.sleep(5)
+
         soup = BeautifulSoup(driver.page_source, 'html.parser')
         date_elements = soup.find('div', string='Next Available Date')
         next_date = date_elements.find_next_sibling(string=True).strip()
-        return next_date
+        print(f"Next available date: {next_date}")
 
     except TimeoutException:
         print("Timeout exception")
 
-
-
     finally:
-        # driver.quit()
-        pass
+        driver.quit()
 
 
 def interact_with_inputs(driver):
@@ -139,4 +124,4 @@ def interact_with_inputs(driver):
 
 if __name__ == '__main__':
     url = 'https://public.txdpsscheduler.com/'
-    print(get_date_with_selenium(url))
+    get_date_with_selenium(url)
