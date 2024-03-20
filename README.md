@@ -9,3 +9,7 @@ The goal of this project is to find a DPS appointment using a bot, so I don't ha
   - After filling in the zip code, it will compare the date with the current date set by the user.
   - If the date is earlier, then it will email the user with the earlier date and the first time slot available for that day
   - After emailing a user, it will sleep for 5 minutes before running again to see if there is an earlier date 
+
+### Disclaimer 
+  - The sole purpose of this project is to automate the process of checking for DPS appointments. It is intended for personal use only and should not be used for any commercial or unauthorized purposes.
+ 
