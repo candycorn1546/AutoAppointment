@@ -1,4 +1,7 @@
+import os
 import time
+
+from dotenv import load_dotenv
 from selenium.common.exceptions import TimeoutException
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
@@ -6,6 +9,10 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium import webdriver
 from bs4 import BeautifulSoup
 from fake_useragent import UserAgent
+from datetime import datetime
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 
 
 def click_button(driver, text):
@@ -85,7 +92,18 @@ def get_date_with_selenium(url, language='English'):
         soup = BeautifulSoup(driver.page_source, 'html.parser')
         date_elements = soup.find('div', string='Next Available Date')
         next_date = date_elements.find_next_sibling(string=True).strip()
-        print(f"Next available date: {next_date}")
+        div_element = WebDriverWait(driver, 10).until(
+            EC.element_to_be_clickable((By.XPATH, "//div[@class='pa-2 mx-3 my-3 text-center card blue lighten-2']"))
+        )
+        div_element.click()
+        soup = BeautifulSoup(driver.page_source, 'html.parser')
+        date_elements = soup.find('div', class_='text-center font-weight-medium mt-5')
+        appointment_time = date_elements.text.strip()
+        return next_date, appointment_time
+
+
+
+
 
     except TimeoutException:
         print("Timeout exception")
@@ -122,6 +140,53 @@ def interact_with_inputs(driver):
         print("Some required fields are missing.")
 
 
+def send_email(appointment_date, appointment_time):
+    sender_email = "sendfrompysms@outlook.com"
+    receiver_email = "vyfrommo@gmail.com"
+    password = os.getenv("PASSWORD")
+
+    if password is None:
+        print("Error: Password not found in environment variables.")
+        return
+
+    msg = MIMEMultipart()
+    msg['From'] = sender_email
+    msg['To'] = receiver_email
+    msg['Subject'] = "NEW APPOINTMENT DATE AVAILABLE!"
+    msg['X-Priority'] = '1'
+
+    body = (f"New appointment date available: {appointment_date} at {appointment_time}!"
+            f"\n\nGo to https://public.txdpsscheduler.com/ to schedule an appointment.")
+
+    msg.attach(MIMEText(body, 'plain'))
+
+    smtp_server = "smtp.office365.com"
+    smtp_port = 587
+
+    try:
+        server = smtplib.SMTP(smtp_server, smtp_port)
+        server.starttls()
+        server.login(sender_email, password)
+        server.sendmail(sender_email, receiver_email, msg.as_string())
+        server.quit()
+
+        print("Email sent successfully!")
+    except Exception as e:
+        print(f"An error occurred: {e}")
+
+
 if __name__ == '__main__':
+    load_dotenv()
     url = 'https://public.txdpsscheduler.com/'
-    get_date_with_selenium(url)
+    current_date = '4/17/2025'
+    count = 0
+    while count < 5:
+        appointment_date, appointment_time = get_date_with_selenium(url)
+        current_date = datetime.strptime(current_date, "%m/%d/%Y")
+        appointment_date = datetime.strptime(appointment_date, "%m/%d/%Y")
+        if appointment_date.date() < current_date.date():
+            send_email(appointment_date.strftime('%Y-%m-%d'), appointment_time)
+            current_date = appointment_date
+
+        time.sleep(300)
+        count += 1
