@@ -15,7 +15,7 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
 
-def click_button(driver, text):
+def click_button(driver, text): # Clicks a button with the specified text
     buttons = WebDriverWait(driver, 10).until(
         EC.presence_of_all_elements_located((By.TAG_NAME, "button"))
     )
@@ -25,12 +25,11 @@ def click_button(driver, text):
             break
 
 
-def wait_until_present(driver, by, locator):
+def wait_until_present(driver, by, locator): # Waits until an element is present
     return WebDriverWait(driver, 10).until(EC.presence_of_all_elements_located((by, locator)))
 
 
-def get_date_with_selenium(url, language='English'):
-    ua = UserAgent()
+def get_date_with_selenium(url, language='English'): # Gets the next available date and time
     options = webdriver.ChromeOptions()
     options.add_argument('--incognito')
     options.add_argument("--start-maximized")
@@ -42,7 +41,7 @@ def get_date_with_selenium(url, language='English'):
 
     try:
         driver.get(url)
-        buttons = wait_until_present(driver, By.TAG_NAME, "button")
+        buttons = wait_until_present(driver, By.TAG_NAME, "button") # Wait until the buttons are present
         language_found = False
         for button in buttons:
             if button.text.strip().lower() == language.lower():
@@ -54,9 +53,9 @@ def get_date_with_selenium(url, language='English'):
             print(f"Language '{language}' not found.")
             return
 
-        wait_until_present(driver, By.XPATH, "//div[@data-v-32f18d34]")
+        wait_until_present(driver, By.XPATH, "//div[@data-v-32f18d34]") # Wait until the div is present
 
-        required_inputs = driver.find_elements(By.XPATH, "//input[@required]")
+        required_inputs = driver.find_elements(By.XPATH, "//input[@required]") # Find all required input fields
         for input_element in required_inputs:
             label_element = input_element.find_element(By.XPATH, "..//label")
             label_text = label_element.text.strip().lower()
@@ -69,7 +68,7 @@ def get_date_with_selenium(url, language='English'):
             elif "last four of ssn" in label_text:
                 input_element.send_keys("1234")
 
-        all_filled = all(input_element.get_attribute("value") for input_element in required_inputs)
+        all_filled = all(input_element.get_attribute("value") for input_element in required_inputs) # Check if all required input fields are filled
 
         if all_filled:
             click_button(driver, "log on")
@@ -80,26 +79,26 @@ def get_date_with_selenium(url, language='English'):
             print("Not all required input fields are filled")
 
         time.sleep(5)
-        click_button(driver, "new appointment")
-        click_button(driver, "service not listed or my license is not eligible")
-        click_button(driver, "no")
+        click_button(driver, "new appointment") # Click the new appointment button
+        click_button(driver, "service not listed or my license is not eligible") # Click the service not listed button
+        click_button(driver, "no") # Click the no button
 
-        interact_with_inputs(driver)
+        interact_with_inputs(driver) # Interact with the input fields
 
-        click_button(driver, "next")
+        click_button(driver, "next") # Click the next button
         time.sleep(5)
 
         soup = BeautifulSoup(driver.page_source, 'html.parser')
-        date_elements = soup.find('div', string='Next Available Date')
+        date_elements = soup.find('div', string='Next Available Date') # Find the next available date
         next_date = date_elements.find_next_sibling(string=True).strip()
         div_element = WebDriverWait(driver, 10).until(
             EC.element_to_be_clickable((By.XPATH, "//div[@class='pa-2 mx-3 my-3 text-center card blue lighten-2']"))
         )
-        div_element.click()
+        div_element.click() # Click the div element
         soup = BeautifulSoup(driver.page_source, 'html.parser')
         date_elements = soup.find('div', class_='text-center font-weight-medium mt-5')
-        appointment_time = date_elements.text.strip()
-        return next_date, appointment_time
+        appointment_time = date_elements.text.strip() # Get the appointment time
+        return next_date, appointment_time # Return the next available date and time
 
 
 
@@ -112,7 +111,7 @@ def get_date_with_selenium(url, language='English'):
         driver.quit()
 
 
-def interact_with_inputs(driver):
+def interact_with_inputs(driver): # Interacts with the input fields
     menucards = WebDriverWait(driver, 10).until(EC.visibility_of_all_elements_located((By.CLASS_NAME, "menucard")))
     menucard = menucards[1]
     input_elements = menucard.find_elements(By.XPATH, ".//input")
@@ -140,7 +139,7 @@ def interact_with_inputs(driver):
         print("Some required fields are missing.")
 
 
-def send_email(appointment_date, appointment_time):
+def send_email(appointment_date, appointment_time): # Sends an email
     sender_email = "sendfrompysms@outlook.com"
     receiver_email = "vyfrommo@gmail.com"
     password = os.getenv("PASSWORD")
@@ -176,17 +175,17 @@ def send_email(appointment_date, appointment_time):
 
 
 if __name__ == '__main__':
-    load_dotenv()
-    url = 'https://public.txdpsscheduler.com/'
-    current_date = '4/17/2025'
+    load_dotenv() # Load environment variables
+    url = 'https://public.txdpsscheduler.com/' # URL to check for appointments
+    current_date = '4/17/2025' # Current date
     count = 0
     while count < 5:
         appointment_date, appointment_time = get_date_with_selenium(url)
         current_date = datetime.strptime(current_date, "%m/%d/%Y")
         appointment_date = datetime.strptime(appointment_date, "%m/%d/%Y")
-        if appointment_date.date() < current_date.date():
-            send_email(appointment_date.strftime('%Y-%m-%d'), appointment_time)
-            current_date = appointment_date
+        if appointment_date.date() < current_date.date(): # If the appointment date is earlier than the current date
+            send_email(appointment_date.strftime('%Y-%m-%d'), appointment_time) # Send an email
+            current_date = appointment_date # Update the current date
 
         time.sleep(300)
         count += 1
